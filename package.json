@@ -1,0 +1,32 @@
+{
+  "name": "talking-tool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI 提示词优化工具 - 语音转文字、提示词编辑、多端实时同步",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "server": "npm run dev -w @talking-tool/server",
+    "server:build": "npm run build -w @talking-tool/server",
+    "desktop": "npm run dev -w @talking-tool/desktop",
+    "desktop:build": "npm run build -w @talking-tool/desktop",
+    "desktop:preview": "npm run preview -w @talking-tool/desktop",
+    "desktop:pack": "npm run electron:build -w @talking-tool/desktop",
+    "mobile": "npm run start -w @talking-tool/mobile",
+    "mobile:ios": "npm run ios -w @talking-tool/mobile",
+    "mobile:android": "npm run android -w @talking-tool/mobile",
+    "mobile:web": "npm run web -w @talking-tool/mobile",
+    "mobile:tunnel": "npm run tunnel -w @talking-tool/mobile",
+    "dev": "npm run server & npm run desktop",
+    "dev:all": "npm run server & npm run desktop & npm run mobile"
+  },
+  "keywords": [
+    "ai",
+    "prompt",
+    "voice",
+    "stt",
+    "sync"
+  ],
+  "license": "MIT"
+}
