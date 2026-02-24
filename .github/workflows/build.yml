@@ -72,6 +72,8 @@ jobs:
 
       - name: Build Android (EAS)
         working-directory: packages/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           eas build --platform android --profile preview --non-interactive --wait --json > eas-build.json
 
