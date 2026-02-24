@@ -83,18 +83,18 @@ function openTerminalAndRun(command: string) {
     return;
   }
 
-  const linuxCandidates = [
-    ["x-terminal-emulator", ["-e", command]],
-    ["gnome-terminal", ["--", "bash", "-lc", command]],
-    ["konsole", ["-e", "bash", "-lc", command]],
-    ["xfce4-terminal", ["-e", `bash -lc "${command}"`]],
-    ["xterm", ["-e", command]],
-  ] as const;
+  const linuxCandidates: Array<{ cmd: string; args: string[] }> = [
+    { cmd: "x-terminal-emulator", args: ["-e", command] },
+    { cmd: "gnome-terminal", args: ["--", "bash", "-lc", command] },
+    { cmd: "konsole", args: ["-e", "bash", "-lc", command] },
+    { cmd: "xfce4-terminal", args: ["-e", `bash -lc \"${command}\"`] },
+    { cmd: "xterm", args: ["-e", command] },
+  ];
 
-  for (const [cmd, args] of linuxCandidates) {
-    const exists = spawnSync("which", [cmd], { stdio: "ignore" });
+  for (const candidate of linuxCandidates) {
+    const exists = spawnSync("which", [candidate.cmd], { stdio: "ignore" });
     if (exists.status === 0) {
-      spawn(cmd, args as string[], { stdio: "ignore" });
+      spawn(candidate.cmd, candidate.args, { stdio: "ignore" });
       return;
     }
   }
