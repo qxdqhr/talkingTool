@@ -24,6 +24,10 @@ function getWorkspaceRoot() {
   return path.resolve(__dirname, "../../..");
 }
 
+function getBundledServerRoot() {
+  return path.join(process.resourcesPath, "server");
+}
+
 function emitServerStatus(status: ServerStatus) {
   serverStatus = status;
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -122,16 +126,32 @@ function startServerProcess() {
   }
 
   emitServerStatus("starting");
-  const workspaceRoot = getWorkspaceRoot();
-  const child = spawn("npm", ["run", "dev", "-w", "@talking-tool/server"], {
-    cwd: workspaceRoot,
-    shell: true,
-    env: {
-      ...process.env,
-      // 默认打开讯飞调试日志，便于桌面端直接排查
-      IFLYTEK_DEBUG: process.env.IFLYTEK_DEBUG ?? "1",
-    },
-  });
+  let child: ChildProcessWithoutNullStreams;
+  const env = {
+    ...process.env,
+    IFLYTEK_DEBUG: process.env.IFLYTEK_DEBUG ?? "1",
+  };
+
+  if (isDev) {
+    const workspaceRoot = getWorkspaceRoot();
+    child = spawn("npm", ["run", "dev", "-w", "@talking-tool/server"], {
+      cwd: workspaceRoot,
+      shell: true,
+      env,
+    });
+  } else {
+    const serverRoot = getBundledServerRoot();
+    const entry = path.join(serverRoot, "dist", "index.js");
+    child = spawn(process.execPath, [entry], {
+      cwd: serverRoot,
+      env: {
+        ...env,
+        ELECTRON_RUN_AS_NODE: "1",
+        NODE_ENV: "production",
+        NODE_PATH: path.join(serverRoot, "node_modules"),
+      },
+    });
+  }
   serverProcess = child;
   pushServerLog("启动 server 进程...");
 

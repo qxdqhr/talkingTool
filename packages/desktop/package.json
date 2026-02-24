@@ -13,6 +13,12 @@
     "files": [
       "dist/**",
       "dist-electron/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/server",
+        "to": "server"
+      }
     ]
   },
   "scripts": {
@@ -20,9 +26,9 @@
     "dev:web": "vite",
     "build": "tsc -p electron/tsconfig.json && vite build",
     "preview": "vite preview",
-    "electron:build": "npm run build && electron-builder",
-    "electron:build:mac": "npm run build && electron-builder --mac",
-    "electron:build:win": "npm run build && electron-builder --win"
+    "electron:build": "npm run build && node ../../scripts/prepare-server-bundle.js && electron-builder",
+    "electron:build:mac": "npm run build && node ../../scripts/prepare-server-bundle.js && electron-builder --mac",
+    "electron:build:win": "npm run build && node ../../scripts/prepare-server-bundle.js && electron-builder --win"
   },
   "dependencies": {
     "qrcode": "^1.5.4",

@@ -79,6 +79,22 @@ AI 提示词优化工具：移动端语音转文字 + 桌面端编辑 + Socket.I
 - Key file:
   - /Users/qihongrui/Desktop/project/talkingTool/packages/server/src/index.ts
 
+## Desktop 打包包含 server + sa2kit
+
+### 目标
+桌面端安装包内置 server 产物和 `sa2kit` 依赖，离线可运行。
+
+### 打包流程
+1. `npm run electron:build` / `npm run electron:build:mac` / `npm run electron:build:win`
+2. 自动执行 `scripts/prepare-server-bundle.js`：
+   - `npm run server:build`
+   - `npm install --omit=dev --prefix packages/server`（确保 `sa2kit` 复制进 node_modules）
+   - 拷贝到 `packages/desktop/resources/server`
+3. Electron 生产环境使用内置 server（`process.resourcesPath/server`）
+
+### 注意
+- `sa2kit` 已改为 npm 依赖（当前版本 `1.6.60`），无需在仓库根目录放置本地目录。
+
 ## External/local dependencies
 - sa2kit is referenced via local file dependency: ../../../sa2kit
   - Ensure it exists in this path for server/mobile builds.

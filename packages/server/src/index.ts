@@ -3,8 +3,8 @@
  * 负责移动端与桌面端的实时通信
  */
 
-import { createServer } from "http";
-import { Server } from "socket.io";
+import { createServer, type IncomingMessage, type ServerResponse } from "http";
+import { Server, type Socket } from "socket.io";
 import { networkInterfaces } from "os";
 import { IflytekServerAdapter } from "sa2kit/iflytek/server";
 
@@ -40,10 +40,12 @@ function logClients() {
   console.log(`[在线] 手机: ${mobile}, 桌面: ${desktop}, 总计: ${clients.size}`);
 }
 
-const httpServer = createServer((_, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ status: "ok", clients: clients.size }));
-});
+const httpServer = createServer(
+  (_req: IncomingMessage, res: ServerResponse) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok", clients: clients.size }));
+  },
+);
 
 const io = new Server(httpServer, {
   cors: { origin: "*" },
@@ -57,7 +59,7 @@ const iflytekAdapter = new IflytekServerAdapter({
   debug: process.env.IFLYTEK_DEBUG === "1",
 });
 
-io.on("connection", (socket) => {
+io.on("connection", (socket: Socket) => {
   console.log(`[连接] ${socket.id}`);
 
   // 注册讯飞适配层（自动监听 iflytek:start/audio/stop/disconnect）

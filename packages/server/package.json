@@ -10,7 +10,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "sa2kit": "file:../../../sa2kit",
+    "sa2kit": "1.6.60",
     "socket.io": "^4.7.2",
     "ws": "^8.19.0"
   },
