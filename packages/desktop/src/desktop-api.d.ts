@@ -10,9 +10,11 @@ declare global {
       stopServer: () => Promise<{ ok: boolean; message?: string }>;
       getLanLinks: () => Promise<string[]>;
       getServerLogs: () => Promise<string[]>;
+      runUsbCommand: (
+        target: "android" | "ios",
+      ) => Promise<{ ok: boolean; command: string; message?: string }>;
       onServerStatusChange: (callback: (status: ServerStatus) => void) => () => void;
       onServerLog: (callback: (line: string) => void) => () => void;
     };
   }
 }
-

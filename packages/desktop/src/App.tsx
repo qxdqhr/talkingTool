@@ -11,10 +11,15 @@ function App() {
   const [serverStatus, setServerStatus] = useState<ServerStatus>("stopped");
   const [connected, setConnected] = useState(false);
   const [mobileOnline, setMobileOnline] = useState(0);
+  const [mobileMode, setMobileMode] = useState<"usb" | "lan" | "unknown">(
+    "unknown",
+  );
   const [lanLinks, setLanLinks] = useState<string[]>([]);
   const [serverLogs, setServerLogs] = useState<string[]>([]);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrSourceLink, setQrSourceLink] = useState("");
+  const [usbActionMsg, setUsbActionMsg] = useState("");
+  const [usbActionError, setUsbActionError] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [finalText, setFinalText] = useState("");
   const [interimText, setInterimText] = useState("");
@@ -67,13 +72,17 @@ function App() {
     socket.on("disconnect", () => {
       setConnected(false);
       setMobileOnline(0);
+      setMobileMode("unknown");
     });
 
     // 在线状态
     socket.on(
       "clients:status",
-      (data: { mobile: number; desktop: number }) => {
+      (data: { mobile: number; desktop: number; mobileMode?: "usb" | "lan" | "unknown" }) => {
         setMobileOnline(data.mobile);
+        if (data.mobileMode) {
+          setMobileMode(data.mobileMode);
+        }
       },
     );
 
@@ -194,6 +203,35 @@ function App() {
     } catch {}
   }, []);
 
+  const handleUsbCommand = useCallback(
+    async (target: "android" | "ios", fallbackCommand: string) => {
+      if (!window.desktopAPI) return;
+      setUsbActionMsg("");
+      setUsbActionError(false);
+
+      try {
+        const result = await window.desktopAPI.runUsbCommand(target);
+        if (result.ok) {
+          setUsbActionMsg(`已打开终端并执行：${result.command}`);
+          setUsbActionError(false);
+          return;
+        }
+        await navigator.clipboard.writeText(fallbackCommand);
+        setUsbActionMsg(
+          `${result.message ?? "无法自动执行"}，已复制命令到剪贴板`,
+        );
+        setUsbActionError(true);
+      } catch {
+        try {
+          await navigator.clipboard.writeText(fallbackCommand);
+        } catch {}
+        setUsbActionMsg("无法自动执行，已复制命令到剪贴板");
+        setUsbActionError(true);
+      }
+    },
+    [],
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* 顶栏 */}
@@ -250,6 +288,26 @@ function App() {
                     {mobileOnline > 0
                       ? `手机已连接 (${mobileOnline})`
                       : "等待手机连接"}
+                  </span>
+                </span>
+              )}
+              {connected && mobileOnline > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={`inline-block h-2 w-2 rounded-full ${
+                      mobileMode === "usb"
+                        ? "bg-indigo-500"
+                        : mobileMode === "lan"
+                          ? "bg-emerald-500"
+                          : "bg-gray-300"
+                    }`}
+                  />
+                  <span className="text-xs text-gray-500">
+                    {mobileMode === "usb"
+                      ? "USB 模式"
+                      : mobileMode === "lan"
+                        ? "局域网模式"
+                        : "连接方式未知"}
                   </span>
                 </span>
               )}
@@ -511,6 +569,70 @@ function App() {
                 <li>手机和电脑连接同一个 Wi-Fi（同一局域网）。</li>
                 <li>手机点击「测试连接」，成功后保存。</li>
               </ol>
+            </section>
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-base font-semibold text-gray-700">
+                  USB 有线连接（无局域网）
+                </h2>
+              </div>
+              <p className="mb-3 text-sm text-gray-500">
+                当公司内网无法访问局域网时，可通过 USB 端口转发让手机访问本机服务。
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p className="text-xs font-medium text-gray-600">Android</p>
+                  <code className="mt-2 block text-xs text-gray-700">
+                    adb reverse tcp:3001 tcp:3001
+                  </code>
+                  <button
+                    onClick={() =>
+                      handleUsbCommand(
+                        "android",
+                        "adb reverse tcp:3001 tcp:3001",
+                      )
+                    }
+                    className="mt-2 rounded-lg bg-blue-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
+                  >
+                    打开终端并执行
+                  </button>
+                  <p className="mt-2 text-[11px] text-gray-400">
+                    取消映射：adb reverse --remove tcp:3001
+                  </p>
+                </div>
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p className="text-xs font-medium text-gray-600">iOS</p>
+                  <code className="mt-2 block text-xs text-gray-700">
+                    iproxy 3001 3001
+                  </code>
+                  <button
+                    onClick={() =>
+                      handleUsbCommand("ios", "iproxy 3001 3001")
+                    }
+                    className="mt-2 rounded-lg bg-blue-500 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600"
+                  >
+                    打开终端并执行
+                  </button>
+                  <p className="mt-2 text-[11px] text-gray-400">
+                    结束后按 Ctrl + C
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                手机端请切换为 <code>http://127.0.0.1:3001</code> 后再测试连接。
+              </div>
+              {usbActionMsg && (
+                <div
+                  className={`mt-3 rounded-lg px-3 py-2 text-xs ${
+                    usbActionError
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {usbActionMsg}
+                </div>
+              )}
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

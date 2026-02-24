@@ -43,3 +43,50 @@ jobs:
           name: desktop-dist
           path: packages/desktop/dist
           if-no-files-found: error
+
+  android-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.2
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android (EAS)
+        working-directory: packages/mobile
+        run: |
+          npx eas build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+
+      - name: Download Android artifact
+        working-directory: packages/mobile
+        run: |
+          node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('eas-build.json','utf8'));const url=data?.artifacts?.buildUrl; if(!url){console.error('No buildUrl');process.exit(1);} console.log(url);"
+          node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('eas-build.json','utf8'));const url=data?.artifacts?.buildUrl; require('child_process').execSync('curl -L \"'+url+'\" -o android-build.apk',{stdio:'inherit'});"
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: packages/mobile/android-build.apk
+          if-no-files-found: error

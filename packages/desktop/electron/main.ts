@@ -3,16 +3,21 @@
  */
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
-import { ChildProcessWithoutNullStreams, spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, spawn, spawnSync } from "child_process";
 import { networkInterfaces } from "os";
 
 const isDev = process.env.NODE_ENV !== "production";
 type ServerStatus = "stopped" | "starting" | "running" | "stopping" | "error";
+type UsbCommandTarget = "android" | "ios";
 
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcessWithoutNullStreams | null = null;
 let serverStatus: ServerStatus = "stopped";
 const serverLogs: string[] = [];
+const USB_COMMANDS: Record<UsbCommandTarget, string> = {
+  android: "adb reverse tcp:3001 tcp:3001",
+  ios: "iproxy 3001 3001",
+};
 
 function getWorkspaceRoot() {
   // dist-electron 在 packages/desktop 下，回到仓库根目录 talkingTool
@@ -47,6 +52,68 @@ function getLanServerLinks(port = 3001) {
     }
   }
   return Array.from(new Set(links));
+}
+
+function openTerminalAndRun(command: string) {
+  if (process.platform === "darwin") {
+    const safe = command.replace(/"/g, '\\"');
+    spawn(
+      "osascript",
+      [
+        "-e",
+        'tell application "Terminal" to activate',
+        "-e",
+        `tell application "Terminal" to do script "${safe}"`,
+      ],
+      { stdio: "ignore" },
+    );
+    return;
+  }
+
+  if (process.platform === "win32") {
+    spawn("cmd", ["/c", "start", "cmd", "/k", command], {
+      shell: true,
+      windowsHide: false,
+      stdio: "ignore",
+    });
+    return;
+  }
+
+  const linuxCandidates = [
+    ["x-terminal-emulator", ["-e", command]],
+    ["gnome-terminal", ["--", "bash", "-lc", command]],
+    ["konsole", ["-e", "bash", "-lc", command]],
+    ["xfce4-terminal", ["-e", `bash -lc "${command}"`]],
+    ["xterm", ["-e", command]],
+  ] as const;
+
+  for (const [cmd, args] of linuxCandidates) {
+    const exists = spawnSync("which", [cmd], { stdio: "ignore" });
+    if (exists.status === 0) {
+      spawn(cmd, args as string[], { stdio: "ignore" });
+      return;
+    }
+  }
+
+  throw new Error("未找到可用的终端程序");
+}
+
+function runUsbCommand(target: UsbCommandTarget) {
+  const command = USB_COMMANDS[target];
+  if (!command) {
+    return { ok: false, message: "未知的 USB 命令类型", command: "" };
+  }
+
+  try {
+    openTerminalAndRun(command);
+    return { ok: true, command };
+  } catch (error: any) {
+    return {
+      ok: false,
+      command,
+      message: error?.message ?? "执行失败",
+    };
+  }
 }
 
 function startServerProcess() {
@@ -155,6 +222,9 @@ app.whenReady().then(() => {
   ipcMain.handle("server:stop", () => stopServerProcess());
   ipcMain.handle("server:getLanLinks", () => getLanServerLinks());
   ipcMain.handle("server:getLogs", () => serverLogs);
+  ipcMain.handle("usb:runCommand", (_event, target: UsbCommandTarget) =>
+    runUsbCommand(target),
+  );
   createWindow();
 });
 

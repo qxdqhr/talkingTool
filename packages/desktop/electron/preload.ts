@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     ipcRenderer.invoke("server:stop"),
   getLanLinks: (): Promise<string[]> => ipcRenderer.invoke("server:getLanLinks"),
   getServerLogs: (): Promise<string[]> => ipcRenderer.invoke("server:getLogs"),
+  runUsbCommand: (
+    target: "android" | "ios",
+  ): Promise<{ ok: boolean; command: string; message?: string }> =>
+    ipcRenderer.invoke("usb:runCommand", target),
   onServerStatusChange: (callback: (status: ServerStatus) => void) => {
     const listener = (_event: unknown, status: ServerStatus) => callback(status);
     ipcRenderer.on("server:status", listener);
@@ -22,4 +26,3 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     return () => ipcRenderer.removeListener("server:log", listener);
   },
 });
-

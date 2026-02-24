@@ -24,10 +24,12 @@ function getLanIPs(): string[] {
 }
 
 type ClientType = "mobile" | "desktop";
+type ConnectionMode = "usb" | "lan";
 
 interface ClientInfo {
   type: ClientType;
   id: string;
+  mode?: ConnectionMode;
 }
 
 const clients = new Map<string, ClientInfo>();
@@ -61,15 +63,39 @@ io.on("connection", (socket) => {
   // 注册讯飞适配层（自动监听 iflytek:start/audio/stop/disconnect）
   iflytekAdapter.attach(socket);
 
-  socket.on("register", (type: ClientType) => {
-    clients.set(socket.id, { type, id: socket.id });
-    console.log(`[注册] ${socket.id} -> ${type}`);
+  socket.on(
+    "register",
+    (
+      payload:
+        | ClientType
+        | { type: ClientType; mode?: ConnectionMode | "unknown" },
+    ) => {
+      const normalized =
+        typeof payload === "string"
+          ? { type: payload }
+          : { type: payload.type, mode: payload.mode };
+      clients.set(socket.id, {
+        type: normalized.type,
+        id: socket.id,
+        mode: normalized.mode === "usb" || normalized.mode === "lan" ? normalized.mode : undefined,
+      });
+      console.log(
+        `[注册] ${socket.id} -> ${normalized.type}${
+          normalized.mode ? ` (${normalized.mode})` : ""
+        }`,
+      );
     logClients();
-    io.emit("clients:status", {
-      mobile: [...clients.values()].filter((c) => c.type === "mobile").length,
-      desktop: [...clients.values()].filter((c) => c.type === "desktop").length,
-    });
-  });
+      const mobiles = [...clients.values()].filter((c) => c.type === "mobile");
+      const mobileUsb = mobiles.filter((c) => c.mode === "usb").length;
+      const mobileLan = mobiles.filter((c) => c.mode === "lan").length;
+      io.emit("clients:status", {
+        mobile: mobiles.length,
+        desktop: [...clients.values()].filter((c) => c.type === "desktop").length,
+        mobileMode:
+          mobileUsb > 0 ? "usb" : mobileLan > 0 ? "lan" : "unknown",
+      });
+    },
+  );
 
   socket.on(
     "stt:chunk",
@@ -90,9 +116,13 @@ io.on("connection", (socket) => {
     clients.delete(socket.id);
     console.log(`[断开] ${socket.id}`);
     logClients();
+    const mobiles = [...clients.values()].filter((c) => c.type === "mobile");
+    const mobileUsb = mobiles.filter((c) => c.mode === "usb").length;
+    const mobileLan = mobiles.filter((c) => c.mode === "lan").length;
     io.emit("clients:status", {
-      mobile: [...clients.values()].filter((c) => c.type === "mobile").length,
+      mobile: mobiles.length,
       desktop: [...clients.values()].filter((c) => c.type === "desktop").length,
+      mobileMode: mobileUsb > 0 ? "usb" : mobileLan > 0 ? "lan" : "unknown",
     });
   });
 });

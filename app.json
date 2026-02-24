@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "9c82be99-8b3d-4661-9859-cd5470610748"
+      }
+    },
+    "owner": "qhrqht",
+    "slug": "talkingtool",
+    "android": {
+      "package": "com.qhrqht.talkingtool"
+    }
+  }
+}

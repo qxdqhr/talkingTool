@@ -51,3 +51,28 @@ npm run mobile
 1. 移动端接入 `react-native-voice` 实现语音转文字
 2. 实现提示词双向同步与 AI 优化逻辑
 3. 打包发布
+
+## CI（GitHub Actions）- Android 打包
+
+当前仓库已配置自动构建 Android APK（EAS Build）。触发条件：push / PR / 手动触发。
+
+### 你需要提供的信息
+- Expo 账号 Access Token（保存为 GitHub Secret：`EXPO_TOKEN`）
+- 初始化 EAS 项目（一次性）
+
+### 本地一次性操作
+```bash
+cd /Users/qihongrui/Desktop/project/talkingTool/packages/mobile
+npx eas init
+```
+完成后会写入 `app.json` 中的 `expo.extra.eas.projectId`，请提交到仓库。
+
+### Android 签名
+首次构建会引导生成/上传 keystore。也可手动配置：
+```bash
+cd /Users/qihongrui/Desktop/project/talkingTool/packages/mobile
+npx eas credentials
+```
+
+### 构建产物
+GitHub Actions 会生成 `android-apk` artifact，可在 Actions 页面下载。
