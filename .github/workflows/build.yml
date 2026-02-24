@@ -67,19 +67,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
       - name: Build Android (EAS)
         working-directory: packages/mobile
         run: |
-          npx eas build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+          eas build --platform android --profile preview --non-interactive --wait --json > eas-build.json
 
       - name: Download Android artifact
         working-directory: packages/mobile
