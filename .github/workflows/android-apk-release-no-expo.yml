@@ -1,10 +1,10 @@
-name: Android Local Build
+name: Android APK Release (No Expo Platform)
 
 on:
   workflow_dispatch:
 
 jobs:
-  android-local:
+  build-release-apk:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,10 +33,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Generate Android native project (Expo prebuild)
-        working-directory: packages/mobile
-        run: npx expo prebuild --platform android --non-interactive
-
       - name: Configure Android keystore
         working-directory: packages/mobile/android
         run: |
@@ -57,9 +53,9 @@ jobs:
         working-directory: packages/mobile/android
         run: ./gradlew assembleRelease
 
-      - name: Upload APK
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-local
+          name: android-apk-release-no-expo
           path: packages/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

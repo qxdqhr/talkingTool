@@ -1,14 +1,11 @@
-name: Build
+name: Android APK (Expo/EAS) - Disabled
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,7 +42,7 @@ jobs:
           if-no-files-found: error
 
   android-build:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ false }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
