@@ -45,6 +45,7 @@ jobs:
           if-no-files-found: error
 
   android-build:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
