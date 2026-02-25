@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   Platform,
-  ActivityIndicator,
   LogBox,
 } from "react-native";
 import { io, Socket } from "socket.io-client";
@@ -16,23 +15,7 @@ import {
 } from "expo-speech-recognition";
 import { IflytekSTT, type AudioRecorder } from "sa2kit/iflytek";
 import { useSettings } from "../context/SettingsContext";
-import { WHISPER_MODELS, type STTEngine } from "../constants";
-
-let _whisperModule: typeof import("whisper.rn") | null = null;
-async function getWhisperModule() {
-  if (!_whisperModule) {
-    _whisperModule = await import("whisper.rn");
-  }
-  return _whisperModule;
-}
-
-type WhisperContext = {
-  transcribeRealtime(options?: any): Promise<{
-    stop: () => void;
-    subscribe: (cb: (evt: any) => void) => void;
-  }>;
-  release(): Promise<void>;
-};
+import { type STTEngine } from "../constants";
 
 let _audioRecorder: AudioRecorder | null = null;
 async function getAudioRecorder(): Promise<AudioRecorder> {
@@ -60,14 +43,9 @@ export default function HomeScreen() {
     () => visibleEngineOptions[0]?.key ?? "system",
   );
   const [engineMenuOpen, setEngineMenuOpen] = useState(false);
-  const [whisperLoading, setWhisperLoading] = useState(false);
-  const [whisperProgress, setWhisperProgress] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const sttScrollRef = useRef<ScrollView>(null);
   const permissionGrantedRef = useRef(false);
-  const whisperCtxRef = useRef<WhisperContext | null>(null);
-  const whisperModelRef = useRef<STTEngine | null>(null);
-  const whisperStopRef = useRef<(() => void) | null>(null);
   const autoFillRef = useRef(autoFill);
   const engineRef = useRef<STTEngine>(engine);
   const handleFinalResultRef = useRef<(text: string) => void>(() => {});
@@ -219,63 +197,11 @@ export default function HomeScreen() {
     if (engine !== "system") return;
     if (event.error === "aborted") return;
     if (event.error === "network") {
-      setError(
-        "网络错误：Google 语音服务不可达，请切换到 Whisper 离线引擎",
-      );
+      setError("网络错误：Google 语音服务不可达，请切换到讯飞引擎");
     } else {
       setError(`${event.error}: ${event.message}`);
     }
   });
-
-  // ========== Whisper 引擎 ==========
-  const ensureWhisperContext = useCallback(
-    async (
-      engineKey: "whisper-tiny" | "whisper-base",
-    ): Promise<WhisperContext | null> => {
-      if (whisperCtxRef.current && whisperModelRef.current === engineKey) {
-        return whisperCtxRef.current;
-      }
-
-      if (whisperCtxRef.current) {
-        try {
-          await whisperCtxRef.current.release();
-        } catch {}
-        whisperCtxRef.current = null;
-        whisperModelRef.current = null;
-      }
-
-      setWhisperLoading(true);
-      setWhisperProgress(`正在加载 ${WHISPER_MODELS[engineKey].label}...`);
-      setError(null);
-
-      try {
-        const whisper = await getWhisperModule();
-        const ctx = await whisper.initWhisper({
-          filePath: WHISPER_MODELS[engineKey].asset,
-        });
-        whisperCtxRef.current = ctx;
-        whisperModelRef.current = engineKey;
-        setWhisperProgress("");
-        return ctx;
-      } catch (e: any) {
-        setError(`Whisper 初始化失败: ${e.message}`);
-        return null;
-      } finally {
-        setWhisperLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (engine === "whisper-tiny" || engine === "whisper-base") {
-      ensureWhisperContext(engine);
-    } else if (whisperCtxRef.current) {
-      whisperCtxRef.current.release().catch(() => {});
-      whisperCtxRef.current = null;
-      whisperModelRef.current = null;
-    }
-  }, [engine, ensureWhisperContext]);
 
   // ========== 按住录音：开始 ==========
   const startRecording = useCallback(async () => {
@@ -351,51 +277,9 @@ export default function HomeScreen() {
           `讯飞适配层不可用：${e?.message ?? "请使用 Development Build"}`,
         );
       }
-    } else {
-      const ctx = await ensureWhisperContext(
-        engine as "whisper-tiny" | "whisper-base",
-      );
-      if (!ctx) return;
-
-      setRecognizing(true);
-      try {
-        const { stop, subscribe } = await ctx.transcribeRealtime({
-          language: "zh",
-          maxLen: 1,
-          realtimeAudioSec: 60,
-          realtimeAudioSliceSec: 5,
-        });
-
-        whisperStopRef.current = stop;
-
-        subscribe((evt: any) => {
-          const { isCapturing, data } = evt;
-          if (data?.result) {
-            const text = data.result.trim();
-            if (text) {
-              handleInterimResult(text);
-            }
-          }
-          if (!isCapturing) {
-            setInterimText((currentInterim) => {
-              if (currentInterim) {
-                handleFinalResult(currentInterim);
-              }
-              return "";
-            });
-            setRecognizing(false);
-            whisperStopRef.current = null;
-          }
-        });
-      } catch (e: any) {
-        setError(`Whisper 转录失败: ${e.message}`);
-        setRecognizing(false);
-      }
     }
   }, [
     engine,
-    ensureWhisperContext,
-    handleFinalResult,
     handleInterimResult,
     recognizing,
   ]);
@@ -410,8 +294,6 @@ export default function HomeScreen() {
     if (!recognizing) return;
     if (engine === "system") {
       ExpoSpeechRecognitionModule.stop();
-    } else if (engine === "whisper-tiny" || engine === "whisper-base") {
-      whisperStopRef.current?.();
     }
   }, [recognizing, engine]);
 
@@ -545,15 +427,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {whisperLoading && (
-          <View className="mb-3 flex-row items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5">
-            <ActivityIndicator size="small" color="#3b82f6" />
-            <Text className="text-xs text-blue-600">
-              {whisperProgress || "准备中..."}
-            </Text>
-          </View>
-        )}
-
         {/* STT 文本显示 */}
         <ScrollView
           ref={sttScrollRef}
@@ -609,13 +482,10 @@ export default function HomeScreen() {
                 : undefined
             }
             onPressOut={recordMode === "hold" ? stopRecording : undefined}
-            disabled={whisperLoading}
             className={`items-center justify-center rounded-xl py-4 ${
-              whisperLoading
-                ? "bg-gray-300"
-                : recognizing
-                  ? "bg-red-500 active:bg-red-600"
-                  : "bg-blue-500 active:bg-blue-600"
+              recognizing
+                ? "bg-red-500 active:bg-red-600"
+                : "bg-blue-500 active:bg-blue-600"
             }`}
           >
             <Text className="text-base font-semibold text-white">
@@ -627,7 +497,7 @@ export default function HomeScreen() {
                   ? "🎤 松开结束"
                   : "🎤 按住录音"}
             </Text>
-            {!recognizing && !whisperLoading && (
+            {!recognizing && (
               <Text className="mt-0.5 text-xs text-blue-200">
                 {recordMode === "toggle"
                   ? "点击开始，再次点击结束"

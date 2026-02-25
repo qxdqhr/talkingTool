@@ -56,8 +56,6 @@ const SETTINGS_STORAGE_KEY = "talkingTool.mobile.settings.v1";
 const DEFAULT_ENGINE_VISIBILITY: Record<STTEngine, boolean> = {
   system: true,
   iflytek: true,
-  "whisper-tiny": true,
-  "whisper-base": true,
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
