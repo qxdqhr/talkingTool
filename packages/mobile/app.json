@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "AI提示词优化工具",
+    "slug": "talking-tool-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "允许「AI提示词优化工具」使用语音识别",
+        "NSMicrophoneUsageDescription": "允许「AI提示词优化工具」使用麦克风进行语音输入",
+        "NSCameraUsageDescription": "允许「AI提示词优化工具」使用相机扫描桌面端二维码"
+      },
+      "bundleIdentifier": "com.qhrqht.talkingtoolmobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ],
+      "package": "com.qhrqht.talkingtoolmobile"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "assetBundlePatterns": [
+      "assets/installers/*"
+    ],
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "允许「AI提示词优化工具」使用相机扫描桌面端二维码"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "允许「AI提示词优化工具」使用麦克风进行语音输入",
+          "speechRecognitionPermission": "允许「AI提示词优化工具」使用语音识别"
+        }
+      ]
+    ]
+  }
+}

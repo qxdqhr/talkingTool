@@ -1,4 +1,4 @@
-name: Android APK (No Expo Platform)
+name: Desktop Package
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build-desktop:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,22 +26,15 @@ jobs:
           node-version: 18
           cache: pnpm
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build Android APK (debug, local Gradle)
-        working-directory: packages/mobile/android
-        run: ./gradlew assembleDebug
+      - name: Build desktop package
+        run: pnpm run desktop:pack
 
-      - name: Upload APK
+      - name: Upload desktop package
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-no-expo
-          path: packages/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: desktop-package
+          path: packages/desktop/release
           if-no-files-found: error
