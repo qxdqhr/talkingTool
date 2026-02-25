@@ -32,7 +32,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/mobile
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-workspace
 
       - name: Patch react-native-static-server Android Gradle config
         run: |
