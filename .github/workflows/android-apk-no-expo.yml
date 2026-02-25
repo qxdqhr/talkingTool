@@ -33,11 +33,12 @@ jobs:
           java-version: 17
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        working-directory: packages/mobile
+        run: pnpm install --frozen-lockfile
 
       - name: Patch react-native-static-server Android Gradle config
         run: |
-          TARGET="$(find node_modules -path '*/react-native-static-server/android/build.gradle' | head -n 1)"
+          TARGET="$(find packages/mobile/node_modules node_modules -path '*/react-native-static-server/android/build.gradle' 2>/dev/null | head -n 1)"
           if [ -z "$TARGET" ]; then
             echo "react-native-static-server build.gradle not found, skip patch."
             exit 0
