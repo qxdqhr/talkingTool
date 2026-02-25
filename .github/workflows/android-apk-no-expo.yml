@@ -35,6 +35,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Patch react-native-static-server Android Gradle config
+        run: |
+          TARGET="$(find node_modules -path '*/react-native-static-server/android/build.gradle' | head -n 1)"
+          if [ -z "$TARGET" ]; then
+            echo "react-native-static-server build.gradle not found, skip patch."
+            exit 0
+          fi
+          echo "Patching $TARGET"
+          sed -i "/apply plugin: ['\\\"]maven['\\\"]/d" "$TARGET"
+          if ! grep -q "compileSdkVersion" "$TARGET" && ! grep -q "compileSdk " "$TARGET"; then
+            awk '
+              { print }
+              !done && /android[[:space:]]*{/ {
+                print "    compileSdkVersion rootProject.ext.compileSdkVersion"
+                done=1
+              }
+            ' "$TARGET" > "$TARGET.tmp"
+            mv "$TARGET.tmp" "$TARGET"
+          fi
+
       - name: Build Android APK (debug, local Gradle)
         working-directory: packages/mobile/android
         run: ./gradlew assembleDebug
