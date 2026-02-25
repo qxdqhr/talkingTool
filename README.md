@@ -76,3 +76,26 @@ npx eas credentials
 
 ### 构建产物
 GitHub Actions 会生成 `android-apk` artifact，可在 Actions 页面下载。
+
+## Android 签名 keystore（首次打包必做）
+
+> 说明：Android 发布包必须签名。只需要生成一次 keystore，以后所有 release 都复用它。
+
+### 生成 keystore（推荐脚本）
+```bash
+/Users/qihongrui/Desktop/project/talkingTool/scripts/gen-android-keystore.sh
+```
+
+### 密钥库口令怎么获取？
+这个口令由你在生成 keystore 时**自己设置**：
+- 运行脚本后会出现交互提示：
+  - `Enter keystore password:` → 这就是 **密钥库口令**
+  - `Enter key password:` → 这是 **key 口令**
+- 你自己输入并牢记即可（以后要一直用）
+
+### 生成后需要保存的 4 个值
+脚本会打印以下值（直接复制到 GitHub Secrets 即可）：
+- `ANDROID_KEYSTORE_BASE64`（keystore 内容的 base64）
+- `ANDROID_KEYSTORE_PASSWORD`（密钥库口令）
+- `ANDROID_KEY_ALIAS`（别名，例如 talkingtool）
+- `ANDROID_KEY_PASSWORD`（key 口令）
