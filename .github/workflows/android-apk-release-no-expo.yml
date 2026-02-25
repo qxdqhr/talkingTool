@@ -40,25 +40,37 @@ jobs:
             echo "react-native-static-server build.gradle not found, skip patch."
             exit 0
           fi
-          echo "Patching $TARGET"
-          sed -i "/apply plugin: ['\\\"]maven['\\\"]/d" "$TARGET"
-          sed -i "s/configurations\\.compile/configurations.runtimeClasspath/g" "$TARGET"
-          sed -i "s/getByName('compile')/getByName('runtimeClasspath')/g" "$TARGET"
-          sed -i "s/getByName(\"compile\")/getByName(\"runtimeClasspath\")/g" "$TARGET"
-          perl -0777 -i -pe 's/afterEvaluate\\s*\\{[\\s\\S]*\\}\\s*$//s' "$TARGET"
-          sed -i "s/^[[:space:]]*compile[[:space:]]\\+/    implementation /g" "$TARGET"
-          sed -i "s/^[[:space:]]*testCompile[[:space:]]\\+/    testImplementation /g" "$TARGET"
-          sed -i "s/^[[:space:]]*androidTestCompile[[:space:]]\\+/    androidTestImplementation /g" "$TARGET"
-          if ! grep -q "compileSdkVersion" "$TARGET" && ! grep -q "compileSdk " "$TARGET"; then
-            awk '
-              { print }
-              !done && /android[[:space:]]*{/ {
-                print "    compileSdkVersion rootProject.ext.compileSdkVersion"
-                done=1
+          echo "Overwriting $TARGET with AGP8-compatible config"
+          cat > "$TARGET" <<'EOF'
+          apply plugin: "com.android.library"
+
+          def safeExtGet(prop, fallback) {
+              rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+          }
+
+          android {
+              compileSdkVersion safeExtGet("compileSdkVersion", 36)
+              defaultConfig {
+                  minSdkVersion safeExtGet("minSdkVersion", 24)
+                  targetSdkVersion safeExtGet("targetSdkVersion", 36)
               }
-            ' "$TARGET" > "$TARGET.tmp"
-            mv "$TARGET.tmp" "$TARGET"
-          fi
+              lintOptions {
+                  abortOnError false
+              }
+          }
+
+          repositories {
+              mavenLocal()
+              google()
+              mavenCentral()
+          }
+
+          dependencies {
+              implementation "com.facebook.react:react-android"
+              implementation "org.nanohttpd:nanohttpd:2.3.1"
+              implementation "org.nanohttpd:nanohttpd-webserver:2.3.1"
+          }
+          EOF
 
       - name: Configure Android keystore
         working-directory: packages/mobile/android
