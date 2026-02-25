@@ -44,6 +44,10 @@ jobs:
           fi
           echo "Patching $TARGET"
           sed -i "/apply plugin: ['\\\"]maven['\\\"]/d" "$TARGET"
+          sed -i "s/configurations\\.compile/configurations.runtimeClasspath/g" "$TARGET"
+          sed -i "s/^[[:space:]]*compile[[:space:]]\\+/    implementation /g" "$TARGET"
+          sed -i "s/^[[:space:]]*testCompile[[:space:]]\\+/    testImplementation /g" "$TARGET"
+          sed -i "s/^[[:space:]]*androidTestCompile[[:space:]]\\+/    androidTestImplementation /g" "$TARGET"
           if ! grep -q "compileSdkVersion" "$TARGET" && ! grep -q "compileSdk " "$TARGET"; then
             awk '
               { print }
