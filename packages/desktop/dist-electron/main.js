@@ -15,9 +15,16 @@ let mainWindow = null;
 let serverProcess = null;
 let serverStatus = "stopped";
 const serverLogs = [];
+const USB_COMMANDS = {
+    android: "adb reverse tcp:3001 tcp:3001",
+    ios: "iproxy 3001 3001",
+};
 function getWorkspaceRoot() {
     // dist-electron 在 packages/desktop 下，回到仓库根目录 talkingTool
     return path_1.default.resolve(__dirname, "../../..");
+}
+function getBundledServerRoot() {
+    return path_1.default.join(process.resourcesPath, "server");
 }
 function emitServerStatus(status) {
     serverStatus = status;
@@ -47,21 +54,89 @@ function getLanServerLinks(port = 3001) {
     }
     return Array.from(new Set(links));
 }
+function openTerminalAndRun(command) {
+    if (process.platform === "darwin") {
+        const safe = command.replace(/"/g, '\\"');
+        (0, child_process_1.spawn)("osascript", [
+            "-e",
+            'tell application "Terminal" to activate',
+            "-e",
+            `tell application "Terminal" to do script "${safe}"`,
+        ], { stdio: "ignore" });
+        return;
+    }
+    if (process.platform === "win32") {
+        (0, child_process_1.spawn)("cmd", ["/c", "start", "cmd", "/k", command], {
+            shell: true,
+            windowsHide: false,
+            stdio: "ignore",
+        });
+        return;
+    }
+    const linuxCandidates = [
+        { cmd: "x-terminal-emulator", args: ["-e", command] },
+        { cmd: "gnome-terminal", args: ["--", "bash", "-lc", command] },
+        { cmd: "konsole", args: ["-e", "bash", "-lc", command] },
+        { cmd: "xfce4-terminal", args: ["-e", `bash -lc \"${command}\"`] },
+        { cmd: "xterm", args: ["-e", command] },
+    ];
+    for (const candidate of linuxCandidates) {
+        const exists = (0, child_process_1.spawnSync)("which", [candidate.cmd], { stdio: "ignore" });
+        if (exists.status === 0) {
+            (0, child_process_1.spawn)(candidate.cmd, candidate.args, { stdio: "ignore" });
+            return;
+        }
+    }
+    throw new Error("未找到可用的终端程序");
+}
+function runUsbCommand(target) {
+    const command = USB_COMMANDS[target];
+    if (!command) {
+        return { ok: false, message: "未知的 USB 命令类型", command: "" };
+    }
+    try {
+        openTerminalAndRun(command);
+        return { ok: true, command };
+    }
+    catch (error) {
+        return {
+            ok: false,
+            command,
+            message: error?.message ?? "执行失败",
+        };
+    }
+}
 function startServerProcess() {
     if (serverProcess) {
         return { ok: false, message: "server 已在运行中" };
     }
     emitServerStatus("starting");
-    const workspaceRoot = getWorkspaceRoot();
-    const child = (0, child_process_1.spawn)("npm", ["run", "dev", "-w", "@talking-tool/server"], {
-        cwd: workspaceRoot,
-        shell: true,
-        env: {
-            ...process.env,
-            // 默认打开讯飞调试日志，便于桌面端直接排查
-            IFLYTEK_DEBUG: process.env.IFLYTEK_DEBUG ?? "1",
-        },
-    });
+    let child;
+    const env = {
+        ...process.env,
+        IFLYTEK_DEBUG: process.env.IFLYTEK_DEBUG ?? "1",
+    };
+    if (isDev) {
+        const workspaceRoot = getWorkspaceRoot();
+        child = (0, child_process_1.spawn)("npm", ["run", "dev", "-w", "@talking-tool/server"], {
+            cwd: workspaceRoot,
+            shell: true,
+            env,
+        });
+    }
+    else {
+        const serverRoot = getBundledServerRoot();
+        const entry = path_1.default.join(serverRoot, "dist", "index.js");
+        child = (0, child_process_1.spawn)(process.execPath, [entry], {
+            cwd: serverRoot,
+            env: {
+                ...env,
+                ELECTRON_RUN_AS_NODE: "1",
+                NODE_ENV: "production",
+                NODE_PATH: path_1.default.join(serverRoot, "node_modules"),
+            },
+        });
+    }
     serverProcess = child;
     pushServerLog("启动 server 进程...");
     let runningMarked = false;
@@ -147,6 +222,7 @@ electron_1.app.whenReady().then(() => {
     electron_1.ipcMain.handle("server:stop", () => stopServerProcess());
     electron_1.ipcMain.handle("server:getLanLinks", () => getLanServerLinks());
     electron_1.ipcMain.handle("server:getLogs", () => serverLogs);
+    electron_1.ipcMain.handle("usb:runCommand", (_event, target) => runUsbCommand(target));
     createWindow();
 });
 electron_1.app.on("window-all-closed", () => {

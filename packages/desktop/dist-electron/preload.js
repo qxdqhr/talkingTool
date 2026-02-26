@@ -7,6 +7,7 @@ electron_1.contextBridge.exposeInMainWorld("desktopAPI", {
     stopServer: () => electron_1.ipcRenderer.invoke("server:stop"),
     getLanLinks: () => electron_1.ipcRenderer.invoke("server:getLanLinks"),
     getServerLogs: () => electron_1.ipcRenderer.invoke("server:getLogs"),
+    runUsbCommand: (target) => electron_1.ipcRenderer.invoke("usb:runCommand", target),
     onServerStatusChange: (callback) => {
         const listener = (_event, status) => callback(status);
         electron_1.ipcRenderer.on("server:status", listener);
