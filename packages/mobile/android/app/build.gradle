@@ -3,12 +3,27 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
-ext.REACT_NATIVE_NODE_MODULES_DIR = new File(
-    ["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()
-).getParentFile().getAbsoluteFile()
-ext.REACT_NATIVE_WORKLETS_NODE_MODULES_DIR = new File(
-    ["node", "--print", "require.resolve('react-native-worklets/package.json')"].execute(null, rootDir).text.trim()
-).getParentFile().getAbsoluteFile()
+def resolveNodePackageDir = { String pkgName, String fallbackRelativePath ->
+    def proc = ["node", "--print", "require.resolve('${pkgName}/package.json')"].execute(null, rootDir)
+    proc.waitFor()
+    def resolved = proc.in.text.trim()
+    if (proc.exitValue() == 0 && resolved) {
+        def parent = new File(resolved).getParentFile()
+        if (parent != null && parent.exists()) {
+            return parent.getAbsoluteFile()
+        }
+    }
+    return new File(rootDir, fallbackRelativePath).getAbsoluteFile()
+}
+
+ext.REACT_NATIVE_NODE_MODULES_DIR = resolveNodePackageDir(
+    "react-native",
+    "../node_modules/react-native",
+)
+ext.REACT_NATIVE_WORKLETS_NODE_MODULES_DIR = resolveNodePackageDir(
+    "react-native-worklets",
+    "../node_modules/react-native-worklets",
+)
 
 /**
  * This is the configuration block to customize your React Native Android app.
