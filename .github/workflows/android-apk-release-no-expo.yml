@@ -1,6 +1,8 @@
 name: Android APK Release (No Expo Platform)
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
