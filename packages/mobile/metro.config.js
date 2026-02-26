@@ -7,6 +7,16 @@ process.env.NODE_PATH = process.env.NODE_PATH
   : mobileModules;
 require("module").Module._initPaths();
 
+if (!Array.prototype.toReversed) {
+  Object.defineProperty(Array.prototype, "toReversed", {
+    value: function () {
+      return this.slice().reverse();
+    },
+    writable: true,
+    configurable: true,
+  });
+}
+
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 
@@ -24,7 +34,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
-// 支持 whisper.rn 模型文件作为 asset
+// 支持 bin 资源（如模型文件）
 config.resolver.assetExts = [...(config.resolver.assetExts || []), "bin"];
 
 module.exports = withNativeWind(config, { input: "./global.css" });
