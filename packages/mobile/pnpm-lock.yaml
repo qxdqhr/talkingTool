@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@babel/plugin-transform-react-jsx':
+        specifier: ^7.24.7
+        version: 7.28.6(@babel/core@7.29.0)
       '@fugood/react-native-audio-pcm-stream':
         specifier: ^1.1.4
         version: 1.1.4
@@ -69,9 +72,6 @@ importers:
         specifier: ^4.7.2
         version: 4.8.3
     devDependencies:
-      '@babel/plugin-transform-react-jsx':
-        specifier: ^7.24.7
-        version: 7.28.6(@babel/core@7.29.0)
       '@types/react':
         specifier: ~19.1.0
         version: 19.1.17
