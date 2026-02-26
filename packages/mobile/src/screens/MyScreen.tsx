@@ -105,7 +105,6 @@ export default function MyScreen() {
     fileName: string;
     notesFileName: string;
     asset?: number;
-    notesAsset?: number;
     downloadUrl?: string;
   }[] = [
     {
@@ -113,7 +112,6 @@ export default function MyScreen() {
       label: "Windows 安装包",
       fileName: "desktop-win.exe",
       notesFileName: "desktop-win.notes.txt",
-      notesAsset: require("../../assets/installers/desktop-win.notes.txt"),
       downloadUrl: "https://github.com/qxdqhr/talkingTool/releases/latest",
     },
     {
@@ -121,7 +119,6 @@ export default function MyScreen() {
       label: "macOS 安装包",
       fileName: "desktop-mac.dmg",
       notesFileName: "desktop-mac.notes.txt",
-      notesAsset: require("../../assets/installers/desktop-mac.notes.txt"),
       downloadUrl: "https://github.com/qxdqhr/talkingTool/releases/latest",
     },
   ];
@@ -199,23 +196,6 @@ export default function MyScreen() {
         }
       }
       let notes: string | undefined;
-      if (item.notesAsset && item.notesFileName) {
-        const notesAsset = Asset.fromModule(item.notesAsset);
-        await notesAsset.downloadAsync();
-        if (notesAsset.localUri) {
-          const notesTarget = `${baseDir}/${item.notesFileName}`;
-          const notesInfo = await FileSystem.getInfoAsync(notesTarget);
-          if (!notesInfo.exists) {
-            await FileSystem.copyAsync({ from: notesAsset.localUri, to: notesTarget });
-          }
-          try {
-            const rawNotes = await FileSystem.readAsStringAsync(notesTarget);
-            if (rawNotes.trim()) {
-              notes = escapeHtml(rawNotes.trim());
-            }
-          } catch {}
-        }
-      }
       fileMap.push({
         fileName: item.fileName,
         label: item.label,
