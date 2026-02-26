@@ -99,22 +99,30 @@ export default function MyScreen() {
   const installerServerRef = useRef<StaticServer | null>(null);
   const installerPort = 8787;
 
-  const installerAssets = [
+  const installerAssets: {
+    key: "win" | "mac";
+    label: string;
+    fileName: string;
+    notesFileName: string;
+    asset?: number;
+    notesAsset?: number;
+    downloadUrl?: string;
+  }[] = [
     {
       key: "win",
       label: "Windows 安装包",
       fileName: "desktop-win.exe",
       notesFileName: "desktop-win.notes.txt",
-      asset: require("../../assets/installers/desktop-win.exe"),
       notesAsset: require("../../assets/installers/desktop-win.notes.txt"),
+      downloadUrl: "https://github.com/qxdqhr/talkingTool/releases/latest",
     },
     {
       key: "mac",
       label: "macOS 安装包",
       fileName: "desktop-mac.dmg",
       notesFileName: "desktop-mac.notes.txt",
-      asset: require("../../assets/installers/desktop-mac.dmg"),
       notesAsset: require("../../assets/installers/desktop-mac.notes.txt"),
+      downloadUrl: "https://github.com/qxdqhr/talkingTool/releases/latest",
     },
   ];
 
@@ -161,6 +169,8 @@ export default function MyScreen() {
       version: string;
       notes?: string;
       notesFileName?: string;
+      downloadUrl?: string;
+      hasLocal: boolean;
     }[] = [];
 
     const parseVersionFromFileName = (fileName: string) => {
@@ -175,15 +185,18 @@ export default function MyScreen() {
         .replace(/>/g, "&gt;");
 
     for (const item of installerAssets) {
-      const asset = Asset.fromModule(item.asset);
-      await asset.downloadAsync();
-      if (!asset.localUri) {
-        throw new Error(`${item.label} 资源不可用`);
-      }
-      const target = `${baseDir}/${item.fileName}`;
-      const info = await FileSystem.getInfoAsync(target);
-      if (!info.exists) {
-        await FileSystem.copyAsync({ from: asset.localUri, to: target });
+      let hasLocal = false;
+      if (item.asset) {
+        const asset = Asset.fromModule(item.asset);
+        await asset.downloadAsync();
+        if (asset.localUri) {
+          const target = `${baseDir}/${item.fileName}`;
+          const info = await FileSystem.getInfoAsync(target);
+          if (!info.exists) {
+            await FileSystem.copyAsync({ from: asset.localUri, to: target });
+          }
+          hasLocal = true;
+        }
       }
       let notes: string | undefined;
       if (item.notesAsset && item.notesFileName) {
@@ -209,6 +222,8 @@ export default function MyScreen() {
         version: parseVersionFromFileName(item.fileName),
         notes,
         notesFileName: item.notesFileName,
+        downloadUrl: item.downloadUrl,
+        hasLocal,
       });
     }
 
@@ -218,9 +233,14 @@ export default function MyScreen() {
           const notesBlock = item.notes
             ? `<details><summary>更新日志</summary><pre>${item.notes}</pre></details>`
             : `<div class="muted">更新日志：暂无</div>`;
+          const linkTarget = item.hasLocal
+            ? item.fileName
+            : item.downloadUrl || "#";
+          const linkLabel = item.hasLocal ? item.label : `${item.label}（跳转下载）`;
+          const linkAttr = item.hasLocal ? "" : ' target="_blank" rel="noreferrer"';
           return `<li class="item">
   <div class="title">
-    <a href="${item.fileName}">${item.label}</a>
+    <a href="${linkTarget}"${linkAttr}>${linkLabel}</a>
     <span class="version">v${item.version}</span>
   </div>
   ${notesBlock}
