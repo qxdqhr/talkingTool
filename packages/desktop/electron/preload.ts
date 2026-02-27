@@ -15,6 +15,21 @@ contextBridge.exposeInMainWorld("desktopAPI", {
     target: "android" | "ios",
   ): Promise<{ ok: boolean; command: string; message?: string }> =>
     ipcRenderer.invoke("usb:runCommand", target),
+  scanTerminalTools: (): Promise<{
+    terminals: Array<{ id: "terminal"; name: string; installed: boolean }>;
+    aiTools: Array<{
+      id: "codex" | "claude" | "gemini";
+      name: string;
+      command: string;
+      installed: boolean;
+    }>;
+  }> => ipcRenderer.invoke("terminal:scan"),
+  sendPromptToTerminal: (payload: {
+    terminalId: "terminal";
+    toolId: "codex" | "claude" | "gemini";
+    prompt: string;
+  }): Promise<{ ok: boolean; message?: string }> =>
+    ipcRenderer.invoke("terminal:sendPrompt", payload),
   onServerStatusChange: (callback: (status: ServerStatus) => void) => {
     const listener = (_event: unknown, status: ServerStatus) => callback(status);
     ipcRenderer.on("server:status", listener);

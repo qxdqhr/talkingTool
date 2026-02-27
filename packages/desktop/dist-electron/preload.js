@@ -8,6 +8,8 @@ electron_1.contextBridge.exposeInMainWorld("desktopAPI", {
     getLanLinks: () => electron_1.ipcRenderer.invoke("server:getLanLinks"),
     getServerLogs: () => electron_1.ipcRenderer.invoke("server:getLogs"),
     runUsbCommand: (target) => electron_1.ipcRenderer.invoke("usb:runCommand", target),
+    scanTerminalTools: () => electron_1.ipcRenderer.invoke("terminal:scan"),
+    sendPromptToTerminal: (payload) => electron_1.ipcRenderer.invoke("terminal:sendPrompt", payload),
     onServerStatusChange: (callback) => {
         const listener = (_event, status) => callback(status);
         electron_1.ipcRenderer.on("server:status", listener);

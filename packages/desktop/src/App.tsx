@@ -5,6 +5,13 @@ import QRCode from "qrcode";
 const SOCKET_URL = "http://localhost:3001";
 type ServerStatus = "stopped" | "starting" | "running" | "stopping" | "error";
 type TabKey = "main" | "settings";
+type TerminalItem = { id: "terminal"; name: string; installed: boolean };
+type AiToolItem = {
+  id: "codex" | "claude" | "gemini";
+  name: string;
+  command: string;
+  installed: boolean;
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("main");
@@ -23,6 +30,12 @@ function App() {
   const [prompt, setPrompt] = useState("");
   const [finalText, setFinalText] = useState("");
   const [interimText, setInterimText] = useState("");
+  const [terminals, setTerminals] = useState<TerminalItem[]>([]);
+  const [aiTools, setAiTools] = useState<AiToolItem[]>([]);
+  const [selectedTerminal, setSelectedTerminal] = useState<"terminal">("terminal");
+  const [selectedAiTool, setSelectedAiTool] = useState<"codex" | "claude" | "gemini">("codex");
+  const [terminalActionMsg, setTerminalActionMsg] = useState("");
+  const [terminalActionError, setTerminalActionError] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const sttRef = useRef<HTMLDivElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -38,6 +51,15 @@ function App() {
     window.desktopAPI.getServerStatus().then(setServerStatus).catch(() => {});
     window.desktopAPI.getLanLinks().then(setLanLinks).catch(() => {});
     window.desktopAPI.getServerLogs().then(setServerLogs).catch(() => {});
+    window.desktopAPI
+      .scanTerminalTools()
+      .then((data) => {
+        setTerminals(data.terminals);
+        setAiTools(data.aiTools);
+        const firstInstalledTool = data.aiTools.find((item) => item.installed);
+        if (firstInstalledTool) setSelectedAiTool(firstInstalledTool.id);
+      })
+      .catch(() => {});
     const dispose = window.desktopAPI.onServerStatusChange((status) => {
       setServerStatus(status);
       if (status === "running") {
@@ -159,6 +181,24 @@ function App() {
       await navigator.clipboard.writeText(prompt);
     } catch {}
   }, [prompt]);
+
+  const handleSendPromptToTerminal = useCallback(async () => {
+    if (!window.desktopAPI || !prompt.trim()) return;
+    setTerminalActionMsg("");
+    setTerminalActionError(false);
+    try {
+      const result = await window.desktopAPI.sendPromptToTerminal({
+        terminalId: selectedTerminal,
+        toolId: selectedAiTool,
+        prompt,
+      });
+      setTerminalActionMsg(result.message ?? (result.ok ? "已发送" : "发送失败"));
+      setTerminalActionError(!result.ok);
+    } catch {
+      setTerminalActionMsg("发送失败，请检查终端与 AI 工具安装状态");
+      setTerminalActionError(true);
+    }
+  }, [prompt, selectedAiTool, selectedTerminal]);
 
   const handleToggleServer = useCallback(async () => {
     if (!window.desktopAPI) return;
@@ -448,6 +488,57 @@ function App() {
                 value={prompt}
                 onChange={(e) => handlePromptChange(e.target.value)}
               />
+
+              <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <p className="mb-2 text-xs font-medium text-gray-600">发送到本机终端 AI 工具</p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <select
+                    value={selectedTerminal}
+                    onChange={(e) => setSelectedTerminal(e.target.value as "terminal")}
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs text-gray-700"
+                  >
+                    {terminals.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} {item.installed ? "" : "(未安装)"}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedAiTool}
+                    onChange={(e) =>
+                      setSelectedAiTool(e.target.value as "codex" | "claude" | "gemini")
+                    }
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs text-gray-700"
+                  >
+                    {aiTools.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} {item.installed ? "" : "(未安装)"}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleSendPromptToTerminal}
+                    disabled={!prompt.trim()}
+                    className="rounded-lg bg-indigo-500 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    打开终端并注入提示词
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-gray-500">
+                  会检测本机已安装 AI CLI（Codex/Claude/Gemini），并在终端启动对应工具后输入当前提示词。
+                </p>
+                {terminalActionMsg && (
+                  <div
+                    className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+                      terminalActionError
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {terminalActionMsg}
+                  </div>
+                )}
+              </div>
             </section>
           </div>
         ) : (

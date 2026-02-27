@@ -5,10 +5,14 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import { ChildProcessWithoutNullStreams, spawn, spawnSync } from "child_process";
 import { networkInterfaces } from "os";
+import { tmpdir } from "os";
+import fs from "fs";
 
 const isDev = process.env.NODE_ENV !== "production";
 type ServerStatus = "stopped" | "starting" | "running" | "stopping" | "error";
 type UsbCommandTarget = "android" | "ios";
+type TerminalId = "terminal";
+type AiToolId = "codex" | "claude" | "gemini";
 
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcessWithoutNullStreams | null = null;
@@ -18,6 +22,85 @@ const USB_COMMANDS: Record<UsbCommandTarget, string> = {
   android: "adb reverse tcp:3001 tcp:3001",
   ios: "iproxy 3001 3001",
 };
+
+const AI_TOOLS: Array<{ id: AiToolId; name: string; command: string }> = [
+  { id: "codex", name: "Codex CLI", command: "codex" },
+  { id: "claude", name: "Claude Code", command: "claude" },
+  { id: "gemini", name: "Gemini CLI", command: "gemini" },
+];
+
+function commandExists(command: string) {
+  const checker = process.platform === "win32" ? "where" : "which";
+  const result = spawnSync(checker, [command], { stdio: "ignore" });
+  return result.status === 0;
+}
+
+function getTerminalStatus() {
+  return [
+    {
+      id: "terminal" as TerminalId,
+      name: process.platform === "darwin" ? "Terminal" : "System Terminal",
+      installed:
+        process.platform === "darwin"
+          ? spawnSync("osascript", ["-e", 'id of app "Terminal"'], {
+              stdio: "ignore",
+            }).status === 0
+          : true,
+    },
+  ];
+}
+
+function getAiToolStatus() {
+  return AI_TOOLS.map((tool) => ({
+    ...tool,
+    installed: commandExists(tool.command),
+  }));
+}
+
+function runAppleScript(lines: string[]) {
+  const args = lines.flatMap((line) => ["-e", line]);
+  const result = spawnSync("osascript", args, { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || "执行 AppleScript 失败");
+  }
+}
+
+function sendPromptToTerminalTool(terminalId: TerminalId, toolId: AiToolId, prompt: string) {
+  const tool = AI_TOOLS.find((item) => item.id === toolId);
+  if (!tool) {
+    return { ok: false, message: "未找到对应 AI 工具" };
+  }
+  if (!commandExists(tool.command)) {
+    return { ok: false, message: `${tool.name} 未安装` };
+  }
+  if (terminalId !== "terminal") {
+    return { ok: false, message: "暂不支持该终端" };
+  }
+
+  try {
+    if (process.platform === "darwin") {
+      const payloadFile = path.join(tmpdir(), `talkingtool-prompt-${Date.now()}.txt`);
+      fs.writeFileSync(payloadFile, prompt, "utf8");
+      const safeCommand = tool.command.replace(/"/g, '\\"');
+      const safeFile = payloadFile.replace(/"/g, '\\"');
+      runAppleScript([
+        'tell application "Terminal" to activate',
+        `tell application "Terminal" to do script "${safeCommand}"`,
+        "delay 0.6",
+        `tell application "Terminal" to do script \"cat \\\"${safeFile}\\\"\" in front window`,
+      ]);
+      return { ok: true, message: `已打开 Terminal 并注入提示词到 ${tool.name}` };
+    }
+
+    openTerminalAndRun(`${tool.command}`);
+    return {
+      ok: true,
+      message: `已打开终端并启动 ${tool.name}。非 macOS 平台请手动粘贴提示词。`,
+    };
+  } catch (error: any) {
+    return { ok: false, message: error?.message ?? "打开终端失败" };
+  }
+}
 
 function getWorkspaceRoot() {
   // dist-electron 在 packages/desktop 下，回到仓库根目录 talkingTool
@@ -244,6 +327,17 @@ app.whenReady().then(() => {
   ipcMain.handle("server:getLogs", () => serverLogs);
   ipcMain.handle("usb:runCommand", (_event, target: UsbCommandTarget) =>
     runUsbCommand(target),
+  );
+  ipcMain.handle("terminal:scan", () => ({
+    terminals: getTerminalStatus(),
+    aiTools: getAiToolStatus(),
+  }));
+  ipcMain.handle(
+    "terminal:sendPrompt",
+    (
+      _event,
+      payload: { terminalId: TerminalId; toolId: AiToolId; prompt: string },
+    ) => sendPromptToTerminalTool(payload.terminalId, payload.toolId, payload.prompt),
   );
   createWindow();
 });
