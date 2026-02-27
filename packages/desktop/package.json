@@ -19,7 +19,16 @@
         "from": "resources/server",
         "to": "server"
       }
-    ]
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    }
   },
   "scripts": {
     "dev": "tsc -p electron/tsconfig.json && concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
