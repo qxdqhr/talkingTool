@@ -17,7 +17,7 @@ function ensureDir(dir) {
 }
 
 function copyDir(from, to) {
-  fs.cpSync(from, to, { recursive: true });
+  fs.cpSync(from, to, { recursive: true, dereference: true });
 }
 
 function cleanDir(dir) {
