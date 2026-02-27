@@ -189,3 +189,32 @@ jobs:
             dist/cross/android-with-desktop.zip
             dist/cross/desktop-with-android.zip
           if-no-files-found: error
+
+  publish-release-assets:
+    needs: [bundle-cross-assets]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download cross-download bundles
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-download-bundles
+          path: dist/cross
+
+      - name: Create or update rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly-main
+          name: Nightly Main Build
+          body: |
+            Auto-updated from main branch workflow.
+            Includes cross-download bundles:
+            - android-with-desktop.zip
+            - desktop-with-android.zip
+          prerelease: true
+          make_latest: false
+          files: |
+            dist/cross/android-with-desktop.zip
+            dist/cross/desktop-with-android.zip
